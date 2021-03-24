@@ -1,0 +1,67 @@
+<html>
+
+<head>
+    <title>GitHub Repo Journal</title>
+</head>
+
+<body>
+    <h1>GitHub Repo Journal</h1>
+    <h2>Converts your GitHub profile into a book.</h2>
+    <input placeholder="GitHub Username" id="uname" /><br />
+    <button onclick="createBook()">Create!</button>
+
+    <div id="book"></div>
+    <!-- <script src="https://code.jquery.com/jquery-3.3.1.js" integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60=" crossorigin="anonymous"></script> -->
+    <!-- <script src="script.js"></script> -->
+    <script type="module">
+        import { Octokit } from "https://cdn.skypack.dev/@octokit/rest";
+        window.Octokit = Octokit;
+    </script>
+
+    <script>
+        function createBook() {
+            let bookDiv = document.getElementById("book");
+            const octokit = new Octokit();
+            let uname = document.getElementById("uname").value;
+            var ghUnameRegex = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
+            if (!uname.match(ghUnameRegex)) {
+                return alert("Username not valid");
+            }
+
+            let repos = octokit.repos.listForUser({
+                username: uname,
+            }).then(data => {
+
+                for (repo of data.data.filter(repo => !repo.fork)) {
+                    let repoContainer = document.createElement("div");
+                    let repoHeading = document.createElement("h2");
+                    repoHeading.innerText = repo.name;
+                    repoContainer.appendChild(repoHeading);
+                    bookDiv.appendChild(repoContainer);
+                    octokit.repos.listCommits({
+                        owner: uname,
+                        repo: repo.name,
+                        per_page: 100
+                    }).then(data => {
+                        for (commit of data.data) {
+                            let msgContainer, text;
+                            if (commit.commit.committer.name === "GitHub" && commit.commit.message.startsWith("Merge pull request")) {
+                                msgContainer = document.createElement("b");
+                                text = commit.commit.message.replace(/[\n]+/g, " \u{2014} ");
+                            } else {
+                                msgContainer = document.createElement("div");
+                                text = commit.commit.message;
+                            }
+                            let textNode = document.createTextNode(text);
+                            msgContainer.append(textNode);
+                            repoHeading.after(msgContainer);
+                        }
+                    });
+                }
+            });
+
+        }
+    </script>
+</body>
+
+</html>
