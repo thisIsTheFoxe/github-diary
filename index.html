@@ -15,9 +15,11 @@
 
 <body>
     <h1>GitHub Diary</h1>
-    <h2>Converts your GitHub profile into a diary.</h2>
-    <input placeholder="GitHub Username" id="uname" /><br />
-    <button onclick="createBook()">Create!</button>
+    <p>Converts your GitHub history into a diary.</p>
+    <form id="create">
+        <input placeholder="GitHub Username" id="uname" /><br />
+        <button type="submit" onclick="createBook()">Create!</button>    
+    </form>
 
     <div id="book"></div>
     <!-- <script src="https://code.jquery.com/jquery-3.3.1.js" integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60=" crossorigin="anonymous"></script> -->
@@ -28,10 +30,18 @@
     </script>
 
     <script>
-        function createBook() {
+        window.onload = ev => {
+            let form = document.getElementById("create");
+            form.addEventListener('submit', createBook);
+        };
+
+        function createBook(ev) {
+            if (ev) {
+                ev.preventDefault();
+            }
             let bookDiv = document.getElementById("book");
             const octokit = new Octokit();
-            let uname = document.getElementById("uname").value;
+            let uname = document.getElementById("uname").value.trim();
             var ghUnameRegex = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
             if (!uname.match(ghUnameRegex)) {
                 return alert("Username not valid");
@@ -63,6 +73,7 @@
                             let text = commit.commit.message.replace(/[\n]+/g, " \u{2014} ");
                             let textNode = document.createTextNode(text);
                             let bigText = document.createElement("b");
+                            bigText.style.color = "purple";
                             bigText.append(textNode);
                             msgContainer.append(bigText);
                         } else {
