@@ -1,16 +1,21 @@
 <html>
 
 <head>
-    <title>GitHub Repo Journal</title>
+    <title>GitHub Diary</title>
     <style>
-        span { padding-inline-end: 10px; }
-        b { padding-inline-end: 10px; }
-        </style>
+        span {
+            padding-inline-end: 10px;
+        }
+
+        b {
+            padding-inline-end: 10px;
+        }
+    </style>
 </head>
 
 <body>
-    <h1>GitHub Repo Journal</h1>
-    <h2>Converts your GitHub profile into a book.</h2>
+    <h1>GitHub Diary</h1>
+    <h2>Converts your GitHub profile into a diary.</h2>
     <input placeholder="GitHub Username" id="uname" /><br />
     <button onclick="createBook()">Create!</button>
 
@@ -32,54 +37,71 @@
                 return alert("Username not valid");
             }
 
-            let repos = octokit.repos.listForUser({
-                username: uname,
-            }).then(data => {
+            var dates = {};
+            var dateDivs = {};
 
-                for (repo of data.data.filter(repo => !repo.fork)) {
-                    let repoContainer = document.createElement("div");
-                    let repoHeading = document.createElement("h2");
-                    repoHeading.innerText = repo.name;
-                    repoContainer.appendChild(repoHeading);
-                    bookDiv.appendChild(repoContainer);
-                    octokit.repos.listCommits({
+
+            (async () => {
+                const repos = await octokit.repos.listForUser({ username: uname, per_page: 100 });
+
+                const promises = repos.data.filter(repo => !repo.fork).map(async (repo) => [
+                    repo.name,
+                    await octokit.repos.listCommits({
                         owner: uname,
                         repo: repo.name,
                         per_page: 100
-                    }).then(data => {
-                        let lastDate, para, heading;
-                        for (commit of data.data) {
-                            let msgContainer, text;
-                            if (commit.commit.committer.name === "GitHub" && commit.commit.message.startsWith("Merge pull request")) {
-                                msgContainer = document.createElement("b");
-                                text = commit.commit.message.replace(/[\n]+/g, " \u{2014} ");
-                            } else {
-                                msgContainer = document.createElement("span");
-                                text = commit.commit.message;
-                            }
-                            let newDate = new Date(commit.commit.committer.date);
-                            newDate.setHours(0,0,0,0);
-                            let textNode = document.createTextNode(text);
-                            msgContainer.append(textNode);
+                    })
+                ]);
 
-                            if (!lastDate || lastDate.valueOf() !== newDate.valueOf()) {
-                                lastDate = newDate;
-                                let newParagraph = document.createElement("p");
-                                para = newParagraph;
-                                let dateHeading = document.createElement("h4");
-                                dateHeading.innerText = newDate.toDateString();
-                                heading = dateHeading;
-                                newParagraph.append(dateHeading);
-                                newParagraph.append(msgContainer);
-                                repoHeading.after(newParagraph);
-                            } else {
-                                heading.after(msgContainer);
-                            }
+                for await (const [repo, commits] of promises) {
+                    var repoHeadingsForDate = {};
+
+                    for (commit of commits.data) {
+                        let msgContainer, text;
+                        if (commit.commit.committer.name === "GitHub" && commit.commit.message.startsWith("Merge pull request")) {
+                            msgContainer = document.createElement("b");
+                            text = commit.commit.message.replace(/[\n]+/g, " \u{2014} ");
+                        } else {
+                            msgContainer = document.createElement("p");
+                            text = commit.commit.message;
                         }
-                    });
-                }
-            });
+                        let textNode = document.createTextNode(text);
+                        msgContainer.append(textNode);
 
+                        let newDate = new Date(commit.commit.committer.date);
+                        newDate.setUTCHours(0, 0, 0, 0);
+
+                        if (!dates[newDate]) {
+                            //make new dateHeading
+                            let dateDiv = document.createElement("div");
+                            dateDivs[newDate] = dateDiv;
+
+                            let dateHeading = document.createElement("h2");
+                            dateHeading.innerText = newDate.toDateString();
+                            dates[newDate] = dateHeading;
+                            dateDiv.append(dateHeading);
+
+                            //...and make new repo heading for new dateHeading
+                            let repoHeading = document.createElement("h4");
+                            repoHeading.innerText = repo;
+                            repoHeadingsForDate[newDate] = repoHeading;
+                            dateHeading.after(repoHeading);
+                        } else if (!repoHeadingsForDate[newDate]) {
+                            //make new repo heading for date
+                            let repoHeading = document.createElement("h4");
+                            repoHeading.innerText = repo;
+                            repoHeadingsForDate[newDate] = repoHeading;
+                            dates[newDate].after(repoHeading);
+                        }
+
+                        repoHeadingsForDate[newDate].after(msgContainer)
+                    }
+                }
+                console.log(dateDivs);
+                for (div of Object.keys(dateDivs).sort((d1, d2) => new Date(d1) - new Date(d2))) {
+                    bookDiv.append(dateDivs[div]);
+                }
+            })();
         }
     </script>
 </body>
