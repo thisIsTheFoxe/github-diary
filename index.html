@@ -2,6 +2,10 @@
 
 <head>
     <title>GitHub Repo Journal</title>
+    <style>
+        span { padding-inline-end: 10px; }
+        b { padding-inline-end: 10px; }
+        </style>
 </head>
 
 <body>
@@ -43,18 +47,34 @@
                         repo: repo.name,
                         per_page: 100
                     }).then(data => {
+                        let lastDate, para, heading;
                         for (commit of data.data) {
                             let msgContainer, text;
                             if (commit.commit.committer.name === "GitHub" && commit.commit.message.startsWith("Merge pull request")) {
                                 msgContainer = document.createElement("b");
                                 text = commit.commit.message.replace(/[\n]+/g, " \u{2014} ");
                             } else {
-                                msgContainer = document.createElement("div");
+                                msgContainer = document.createElement("span");
                                 text = commit.commit.message;
                             }
+                            let newDate = new Date(commit.commit.committer.date);
+                            newDate.setHours(0,0,0,0);
                             let textNode = document.createTextNode(text);
                             msgContainer.append(textNode);
-                            repoHeading.after(msgContainer);
+
+                            if (!lastDate || lastDate.valueOf() !== newDate.valueOf()) {
+                                lastDate = newDate;
+                                let newParagraph = document.createElement("p");
+                                para = newParagraph;
+                                let dateHeading = document.createElement("h4");
+                                dateHeading.innerText = newDate.toDateString();
+                                heading = dateHeading;
+                                newParagraph.append(dateHeading);
+                                newParagraph.append(msgContainer);
+                                repoHeading.after(newParagraph);
+                            } else {
+                                heading.after(msgContainer);
+                            }
                         }
                     });
                 }
