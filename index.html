@@ -53,20 +53,22 @@
                     })
                 ]);
 
-                for await (const [repo, commits] of promises) {
-                    var repoHeadingsForDate = {};
+                async function handleCommits(repo, commits, page, repoHeadings) {
+                    var repoHeadingsForDate = repoHeadings || {};
 
                     for (commit of commits.data) {
-                        let msgContainer, text;
+                        let msgContainer = document.createElement("p");
+
                         if (commit.commit.committer.name === "GitHub" && commit.commit.message.startsWith("Merge pull request")) {
-                            msgContainer = document.createElement("b");
-                            text = commit.commit.message.replace(/[\n]+/g, " \u{2014} ");
+                            let text = commit.commit.message.replace(/[\n]+/g, " \u{2014} ");
+                            let textNode = document.createTextNode(text);
+                            let bigText = document.createElement("b");
+                            bigText.append(textNode);
+                            msgContainer.append(bigText);
                         } else {
-                            msgContainer = document.createElement("p");
-                            text = commit.commit.message;
+                            let textNode = document.createTextNode(commit.commit.message);
+                            msgContainer.append(textNode);
                         }
-                        let textNode = document.createTextNode(text);
-                        msgContainer.append(textNode);
 
                         let newDate = new Date(commit.commit.committer.date);
                         newDate.setUTCHours(0, 0, 0, 0);
@@ -96,8 +98,22 @@
 
                         repoHeadingsForDate[newDate].after(msgContainer)
                     }
+
+                    if (commits.data.length >= 100) {
+                        const newCommits = await octokit.repos.listCommits({
+                            owner: uname,
+                            repo: repo,
+                            per_page: 100,
+                            page: page,
+                        });
+                        await handleCommits(repo, newCommits, page+1, repoHeadingsForDate);
+                    }
                 }
-                console.log(dateDivs);
+
+                for await (const [repo, commits] of promises) {
+                    await handleCommits(repo, commits, 0)
+                }
+
                 for (div of Object.keys(dateDivs).sort((d1, d2) => new Date(d1) - new Date(d2))) {
                     bookDiv.append(dateDivs[div]);
                 }
