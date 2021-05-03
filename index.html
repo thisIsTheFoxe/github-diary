@@ -56,7 +56,7 @@
                 try {
                     repos = await octokit.repos.listForUser({ username: uname, per_page: 100 });
                 } catch(err) {
-                    alert(err);
+                    alert("can't get repos.");
                     return
                 }
                 
@@ -69,6 +69,7 @@
                             per_page: 100
                         });
                     } catch {
+                        alert("can't get commits for repo: " + repo);
                         commits = { data: [] }
                     }
                     return [repo.name, commits]
@@ -132,7 +133,7 @@
                             await handleCommits(repo, newCommits, page + 1, repoHeadingsForDate);
 
                         } catch {
-                            console.log("Error getting commits.");
+                            alert("can't get all the commits");
                         }
                     }
                 }
