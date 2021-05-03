@@ -18,7 +18,7 @@
     <p>Converts your GitHub history into a diary.</p>
     <form id="create">
         <input placeholder="GitHub Username" id="uname" /><br />
-        <button type="submit" onclick="createBook()">Create!</button>    
+        <button type="submit">Create!</button>
     </form>
 
     <div id="book"></div>
@@ -52,16 +52,27 @@
 
 
             (async () => {
-                const repos = await octokit.repos.listForUser({ username: uname, per_page: 100 });
-
-                const promises = repos.data.filter(repo => !repo.fork).map(async (repo) => [
-                    repo.name,
-                    await octokit.repos.listCommits({
-                        owner: uname,
-                        repo: repo.name,
-                        per_page: 100
-                    })
-                ]);
+                let repos;
+                try {
+                    repos = await octokit.repos.listForUser({ username: uname, per_page: 100 });
+                } catch(err) {
+                    alert(err);
+                    return
+                }
+                
+                const promises = repos.data.filter(repo => !repo.fork).map(async (repo) => {
+                    let commits;
+                    try {
+                        commits = await octokit.repos.listCommits({
+                            owner: uname,
+                            repo: repo.name,
+                            per_page: 100
+                        });
+                    } catch {
+                        commits = { data: [] }
+                    }
+                    return [repo.name, commits]
+                });
 
                 async function handleCommits(repo, commits, page, repoHeadings) {
                     var repoHeadingsForDate = repoHeadings || {};
@@ -111,13 +122,18 @@
                     }
 
                     if (commits.data.length >= 100) {
-                        const newCommits = await octokit.repos.listCommits({
-                            owner: uname,
-                            repo: repo,
-                            per_page: 100,
-                            page: page,
-                        });
-                        await handleCommits(repo, newCommits, page+1, repoHeadingsForDate);
+                        try {
+                            const newCommits = await octokit.repos.listCommits({
+                                owner: uname,
+                                repo: repo,
+                                per_page: 100,
+                                page: page,
+                            });
+                            await handleCommits(repo, newCommits, page + 1, repoHeadingsForDate);
+
+                        } catch {
+                            console.log("Error getting commits.");
+                        }
                     }
                 }
 
